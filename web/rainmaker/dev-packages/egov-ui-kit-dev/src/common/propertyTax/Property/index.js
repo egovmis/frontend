@@ -10,7 +10,7 @@ import { Icon, BreadCrumbs } from "egov-ui-kit/components";
 import { addBreadCrumbs } from "egov-ui-kit/redux/app/actions";
 import { fetchGeneralMDMSData } from "egov-ui-kit/redux/common/actions";
 import PropertyInformation from "./components/PropertyInformation";
-import { fetchProperties, getSingleAssesmentandStatus, fetchTotalBillAmount,fetchReceipt } from "egov-ui-kit/redux/properties/actions";
+import { fetchProperties, getSingleAssesmentandStatus, fetchTotalBillAmount,fetchReceipt,fetchAssessments } from "egov-ui-kit/redux/properties/actions";
 import { getCompletedTransformedItems } from "egov-ui-kit/common/propertyTax/TransformedAssessments";
 import isEqual from "lodash/isEqual";
 import orderby from "lodash/orderBy";
@@ -60,7 +60,7 @@ class Property extends Component {
   }
 
   componentDidMount = () => {
-    const { location, addBreadCrumbs, fetchGeneralMDMSData, renderCustomTitleForPt, customTitle, fetchProperties, fetchTotalBillAmount,fetchReceipt } = this.props;
+    const { location, addBreadCrumbs, fetchGeneralMDMSData, renderCustomTitleForPt, customTitle, fetchProperties, fetchTotalBillAmount,fetchReceipt,fetchAssessments } = this.props;
     const requestBody = {
       MdmsCriteria: {
         tenantId: commonConfig.tenantId,
@@ -129,6 +129,11 @@ class Property extends Component {
       { key: "tenantId", value: this.props.match.params.tenantId },
       { key: "businessService", value: 'PT' }
     ]);
+fetchAssessments([
+  { key: "propertyIds", value: decodeURIComponent(this.props.match.params.propertyId) },
+  { key: "tenantId", value: this.props.match.params.tenantId }
+]);
+
     fetchReceipt([
       { key: "consumerCodes", value: decodeURIComponent(this.props.match.params.propertyId) },
       { key: "tenantId", value: this.props.match.params.tenantId }
@@ -319,50 +324,51 @@ class Property extends Component {
 }
 const getYearlyAssessments = (propertiesArray = []) => {
   let yearlyAssessments = [];
-  propertiesArray.map((property) => {
-    if (yearlyAssessments.length == 0) {
-      yearlyAssessments[0] = [property];
-    } else {
-      let bool = true;
-      for (let pty of yearlyAssessments) {
-        if (pty[0].financialYear == property.financialYear) {
-          pty.push(property)
-          bool = false;
-        }
-      }
-      if (bool) {
-        yearlyAssessments.push([property]);
-      }
-    }
-  })
-  for (let eachYrAssessments of yearlyAssessments) {
-    eachYrAssessments.sort((x, y) => y.assessmentDate - x.assessmentDate);
-  }
-  yearlyAssessments.sort((x, y) => x[0].financialYear.localeCompare(y[0].financialYear));
   return yearlyAssessments;
+  // propertiesArray.map((property) => {
+  //   if (yearlyAssessments.length == 0) {
+  //     yearlyAssessments[0] = [property];
+  //   } else {
+  //     let bool = true;
+  //     for (let pty of yearlyAssessments) {
+  //       if (pty[0].financialYear == property.financialYear) {
+  //         pty.push(property)
+  //         bool = false;
+  //       }
+  //     }
+  //     if (bool) {
+  //       yearlyAssessments.push([property]);
+  //     }
+  //   }
+  // })
+  // for (let eachYrAssessments of yearlyAssessments) {
+  //   eachYrAssessments.sort((x, y) => y.assessmentDate - x.assessmentDate);
+  // }
+  // yearlyAssessments.sort((x, y) => x[0].financialYear.localeCompare(y[0].financialYear));
+  // return yearlyAssessments;
 }
 const getPendingAssessments = (selPropertyDetails, singleAssessmentByStatus = []) => {
   let pendingAssessments = [];
-  let propertiesArray = selPropertyDetails.propertyDetails || [];
-  let yearlyAssessments = [];
-  yearlyAssessments = getYearlyAssessments(propertiesArray);
-  let paidAssessments = [];
-  paidAssessments = getYearlyAssessments(singleAssessmentByStatus);
-  for (let eachYrAssessments of yearlyAssessments) {
-    let bol = true;
-    for (let paidAssessment of paidAssessments) {
-      if (eachYrAssessments[0].financialYear === paidAssessment[0].financialYear) {
-        bol = false;
-        pendingAssessments.push(paidAssessment[0]);
-        if (eachYrAssessments[0].assessmentNumber !== paidAssessment[0].assessmentNumber) {
-          pendingAssessments.push(eachYrAssessments[0]);
-        }
-      }
-    }
-    if (bol) {
-      pendingAssessments.push(eachYrAssessments[0]);
-    }
-  }
+  // let propertiesArray = selPropertyDetails.propertyDetails || [];
+  // let yearlyAssessments = [];
+  // yearlyAssessments = getYearlyAssessments(propertiesArray);
+  // let paidAssessments = [];
+  // paidAssessments = getYearlyAssessments(singleAssessmentByStatus);
+  // for (let eachYrAssessments of yearlyAssessments) {
+  //   let bol = true;
+  //   for (let paidAssessment of paidAssessments) {
+  //     if (eachYrAssessments[0].financialYear === paidAssessment[0].financialYear) {
+  //       bol = false;
+  //       pendingAssessments.push(paidAssessment[0]);
+  //       if (eachYrAssessments[0].assessmentNumber !== paidAssessment[0].assessmentNumber) {
+  //         pendingAssessments.push(eachYrAssessments[0]);
+  //       }
+  //     }
+  //   }
+  //   if (bol) {
+  //     pendingAssessments.push(eachYrAssessments[0]);
+  //   }
+  // }
   return pendingAssessments;
 }
 const checkPaid = (property, ptList = []) => {
@@ -677,6 +683,7 @@ const mapDispatchToProps = (dispatch) => {
     getSingleAssesmentandStatus: (queryObj) => dispatch(getSingleAssesmentandStatus(queryObj)),
     fetchTotalBillAmount: (fetchBillQueryObject) => dispatch(fetchTotalBillAmount(fetchBillQueryObject)),
     fetchReceipt: (fetchReceiptQueryObject) => dispatch(fetchReceipt(fetchReceiptQueryObject)),
+    fetchAssessments: (fetchAssessmentsQueryObject) => dispatch(fetchAssessments(fetchAssessmentsQueryObject)),
   };
 };
 

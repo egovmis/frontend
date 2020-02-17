@@ -242,8 +242,14 @@ class WorkFlowContainer extends React.Component {
   };
 
   getRedirectUrl = (action, businessId, moduleName) => {
+    console.log("modulenamewater",moduleName);
     const isAlreadyEdited = getQueryArg(window.location.href, "edited");
     const tenant = getQueryArg(window.location.href, "tenantId");
+    const { ProcessInstances } = this.props;
+    let applicationStatus;
+    if ( ProcessInstances && ProcessInstances.length > 0 ) {
+        applicationStatus = get( ProcessInstances[ProcessInstances.length - 1], "state.applicationStatus" );
+    }
     let baseUrl = "";
     let bservice = "";
     if(moduleName === "FIRENOC"){
@@ -251,6 +257,8 @@ class WorkFlowContainer extends React.Component {
     }else if(moduleName === "BPA"){
       baseUrl = "egov-bpa";
       bservice = ((applicationStatus =="PENDING_APPL_FEE") ? "BPA.NC_APP_FEE" :"BPA.NC_SAN_FEE");
+    }else if(moduleName === "NewWS1"||moduleName === "NewSW1"){
+      baseUrl="wns"
     }else{
       baseUrl = "tradelicence";
     }
@@ -302,9 +310,11 @@ class WorkFlowContainer extends React.Component {
     const businessServiceData = JSON.parse(
       localStorageGet("businessServiceData")
     );    
-    const data = find(businessServiceData, { businessService: moduleName });
-    const nextState = find(data.states, { uuid: nextStateUUID });
-    return nextState.isTerminateState;
+    const data = businessServiceData && businessServiceData.length > 0 ? find(businessServiceData, { businessService: moduleName }) : [];
+    // const nextState = data && data.length > 0 find(data.states, { uuid: nextStateUUID });
+
+    const isLastState = data ? find(data.states, { uuid: nextStateUUID }).isTerminateState : false;
+    return isLastState;
   };
 
   checkIfDocumentRequired = (nextStateUUID, moduleName) => {

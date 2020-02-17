@@ -1,6 +1,5 @@
 import React from "react";
 import { connect } from "react-redux";
-import { Link } from "react-router-dom";
 import Label from "../../ui-containers/LabelContainer";
 import Card from "@material-ui/core/Card";
 import CardContent from "@material-ui/core/CardContent";
@@ -9,9 +8,11 @@ import Button from "@material-ui/core/Button";
 import get from "lodash/get";
 import { withStyles } from "@material-ui/core/styles";
 import { setRoute } from "egov-ui-framework/ui-redux/app/actions";
+import {toggleSnackbar} from "egov-ui-framework/ui-redux/screen-configuration/actions";
 import "./index.css";
-import { handleScreenConfigurationFieldChange as handleField } from "../../ui-redux/screen-configuration/actions";
 import { checkValueForNA } from "../../ui-config/screens/specs/utils";
+import { localStorageSet } from "egov-ui-kit/utils/localStorageUtils";
+import { httpRequest } from "egov-ui-framework/ui-utils/api";
 const styles = {
   card: {
     marginLeft: 8,
@@ -20,10 +21,39 @@ const styles = {
   }
 };
 
+
 class SingleApplication extends React.Component {
-  onCardClick = item => {
+  
+  setBusinessServiceDataToLocalStorage = async (queryObject) => {
+    const {toggleSnackbar} = this.props;
+    try {
+      const payload = await httpRequest("post","egov-workflow-v2/egov-wf/businessservice/_search", "_search", queryObject);
+      localStorageSet("businessServiceData", JSON.stringify(get(payload, "BusinessServices")));
+      return get(payload, "BusinessServices");
+    } catch (e) {
+      toggleSnackbar(
+        true,
+        {
+          labelName: "Not authorized to access Business Service!",
+          labelKey: "ERR_NOT_AUTHORISED_BUSINESS_SERVICE",
+        },
+        "error"
+      );
+    }
+  };
+
+  onCardClick =  (item) => {
     const { moduleName } = this.props;
     if (moduleName === "TL") {
+      const wfCode = get(item, "workflowCode");
+      const businessServiceQueryObject = [
+        { key: "tenantId", value: get(item, "tenantId") },
+        {
+          key: "businessServices",
+          value: wfCode
+        }
+      ];
+      this.setBusinessServiceDataToLocalStorage(businessServiceQueryObject);
       switch (item.status) {
         case "INITIATED":
           return `/tradelicense-citizen/apply?applicationNumber=${item.applicationNumber}&tenantId=${item.tenantId}`;
@@ -48,6 +78,7 @@ class SingleApplication extends React.Component {
       } else {
         switch (item.status) {
           case "Inprogress":
+          case "Initiated":
             return `/egov-bpa/apply?applicationNumber=${item.applicationNumber}&tenantId=${item.tenantId}`;
           default:
             return `/egov-bpa/search-preview?applicationNumber=${item.applicationNumber}&tenantId=${item.tenantId}`;
@@ -66,17 +97,6 @@ class SingleApplication extends React.Component {
   onButtonCLick = () => {
     const { setRoute, homeURL } = this.props;
     setRoute(homeURL);
-    // let toggle = get(
-    //   screenConfig["my-applications"],
-    //   "components.cityPickerDialog.props.open",
-    //   false
-    // );
-    // handleField(
-    //   "my-applications",
-    //   "components.cityPickerDialog",
-    //   "props.open",
-    //   !toggle
-    // );
   };
   generateLabelKey = (content, item) => {
     let LabelKey = "";
@@ -101,7 +121,7 @@ class SingleApplication extends React.Component {
   };
 
   render() {
-    const { searchResults, classes, contents, moduleName } = this.props;
+    const { searchResults, classes, contents, moduleName,setRoute } = this.props;
     return (
       <div className="application-card">
         {searchResults && searchResults.length > 0 ? (
@@ -137,8 +157,11 @@ class SingleApplication extends React.Component {
                         </Grid>
                       );
                     })}
-                    <Link to={this.onCardClick(item)}>
-                      <div>
+                    {/* <Link to={this.onCardClick(item)}> */}
+                      <div style={{cursor:"pointer"}} onClick = {()=>{
+                        const url = this.onCardClick(item);
+                        setRoute(url);
+                        }}>
                         <Label
                           labelKey={ item.status==="APPROVED"&&moduleName === "TL" ? "TL_VIEW_DETAILS_RENEWAL":"TL_VIEW_DETAILS"}
                           textTransform={"uppercase"}
@@ -149,7 +172,7 @@ class SingleApplication extends React.Component {
                           }}
                         />
                       </div>
-                    </Link>
+                    {/* </Link> */}
                   </div>
                 </CardContent>
               </Card>
@@ -193,9 +216,8 @@ const mapStateToProps = state => {
 
 const mapDispatchToProps = dispatch => {
   return {
-    setRoute: path => dispatch(setRoute(path))
-    // handleField: (screenKey, jsonPath, fieldKey, value) =>
-    //   dispatch(handleField(screenKey, jsonPath, fieldKey, value))
+    setRoute: path => dispatch(setRoute(path)),
+    toggleSnackbar : (open,message,type) => dispatch(toggleSnackbar(open,message,type))
   };
 };
 
